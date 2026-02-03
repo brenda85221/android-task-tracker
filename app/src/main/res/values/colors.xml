@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 主題色 -->
+    <color name="primary">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="accent">#FF4081</color>
+
+    <!-- 任務顏色標籤 -->
+    <color name="task_blue">#2196F3</color>
+    <color name="task_red">#F44336</color>
+    <color name="task_green">#4CAF50</color>
+    <color name="task_yellow">#FFEB3B</color>
+    <color name="task_purple">#9C27B0</color>
+    <color name="task_orange">#FF9800</color>
+    <color name="task_pink">#E91E63</color>
+    <color name="task_teal">#009688</color>
+
+    <!-- 背景與文字 -->
+    <color name="background">#FFFFFF</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="divider">#BDBDBD</color>
+
+    <!-- 狀態色 -->
+    <color name="success">#4CAF50</color>
+    <color name="error">#F44336</color>
+    <color name="warning">#FF9800</color>
+</resources>
