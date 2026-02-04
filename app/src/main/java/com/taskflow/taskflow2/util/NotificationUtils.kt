@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.taskflow.taskflow2.MainActivity   // 注意 package
+import com.taskflow.taskflow2.MainActivity
 import com.taskflow.taskflow2.R
 
 object NotificationUtils {

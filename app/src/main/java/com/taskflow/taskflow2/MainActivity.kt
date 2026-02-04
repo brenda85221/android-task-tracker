@@ -16,7 +16,10 @@ import kotlinx.coroutines.launch
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import java.util.Calendar
 import kotlinx.coroutines.flow.collectLatest
-
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.util.Log
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,6 +30,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d("MainActivity", "onCreate called")
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -55,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         binding.rvTasks.layoutManager = LinearLayoutManager(this)
         binding.rvTasks.adapter = taskAdapter
 
+//        Log.d("TaskFlow", "Binding & ContentView OK")
         // 監聽資料變化
         lifecycleScope.launch {
             taskDao.getAllTasks().collectLatest { tasks ->
@@ -77,7 +83,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         taskAdapter.onEdit = { task ->
-            Toast.makeText(this, "編輯 ${task.title}", Toast.LENGTH_SHORT).show()
+//            Toast.makeText(this, "編輯 ${task.title}", Toast.LENGTH_SHORT).show()
+            showEditTaskDialog(task)
         }
     }
 
@@ -186,4 +193,78 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
     }
+
+    private fun showEditTaskDialog(task: TaskEntity) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_create_task, null)
+        val etTitle = dialogView.findViewById<EditText>(R.id.etTitle)
+        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
+        val etNotes = dialogView.findViewById<EditText>(R.id.etNotes)
+        val btnDate = dialogView.findViewById<Button>(R.id.btnDate)
+        val btnTime = dialogView.findViewById<Button>(R.id.btnTime)
+        val spinnerReminder = dialogView.findViewById<Spinner>(R.id.spinnerReminder)
+        val rgColors = dialogView.findViewById<RadioGroup>(R.id.rgColors)
+        val btnCancel = dialogView.findViewById<Button>(R.id.btnCancel)
+        val btnSave = dialogView.findViewById<Button>(R.id.btnSave)
+
+        // 預填現有資料
+        etTitle.setText(task.title)
+        etDescription.setText(task.description)
+        etNotes.setText(task.notes)
+        btnDate.text = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(task.dueDate))
+        btnTime.text = task.dueTime
+        // 設定 spinner 和顏色（依 task.reminderType 和 task.colorTag 調整索引）
+        when (task.reminderType) {
+            "DAILY" -> spinnerReminder.setSelection(1)
+            "WEEKLY" -> spinnerReminder.setSelection(2)
+            else -> spinnerReminder.setSelection(0)
+        }
+        when (task.colorTag) {
+            "F44336" -> rgColors.check(R.id.rbRed)
+            "4CAF50" -> rgColors.check(R.id.rbGreen)
+            else -> rgColors.check(R.id.rbBlue)
+        }
+
+        // 日期/時間 picker 邏輯同 showCreateTaskDialog，但用 task.dueDate 初始
+        var selectedDateMillis = task.dueDate
+        var selectedTime = task.dueTime.toIntOrNull() ?: 900
+        // ... (複製日期/時間 setOnClickListener，從 showCreateTaskDialog)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("編輯任務")
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        btnSave.setOnClickListener {
+            val updatedTask = task.copy(
+                title = etTitle.text.toString().trim(),
+                description = etDescription.text.toString().trim(),
+                notes = etNotes.text.toString().trim(),
+                dueDate = selectedDateMillis,
+                dueTime = String.format("%02d%02d", selectedTime / 100, selectedTime % 100),
+                reminderType = when (spinnerReminder.selectedItemPosition) {
+                    1 -> "DAILY"
+                    2 -> "WEEKLY"
+                    else -> "ONCE"
+                },
+                colorTag = when (rgColors.checkedRadioButtonId) {
+                    R.id.rbRed -> "F44336"
+                    R.id.rbGreen -> "4CAF50"
+                    else -> "2196F3"
+                },
+                colorName = when (rgColors.checkedRadioButtonId) {
+                    R.id.rbRed -> "Red"
+                    R.id.rbGreen -> "Green"
+                    else -> "Blue"
+                }
+            )
+            lifecycleScope.launch {
+                taskDao.updateTask(updatedTask)
+            }
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
 }
