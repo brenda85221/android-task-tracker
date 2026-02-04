@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etColorName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="顏色名稱"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/etColorTag"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="十六進位代碼 (如 #F44336)" />
+
+</LinearLayout>

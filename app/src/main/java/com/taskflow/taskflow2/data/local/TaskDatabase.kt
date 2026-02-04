@@ -6,12 +6,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [TaskEntity::class],
-    version = 1,
+    entities = [TaskEntity::class, TaskColor::class],  // ← 直接加進去
+    version = 1,                                        // ← 保持 1，不升級
     exportSchema = false
 )
 abstract class TaskDatabase : RoomDatabase() {
-
     abstract fun taskDao(): TaskDao
 
     companion object {
@@ -24,7 +23,10 @@ abstract class TaskDatabase : RoomDatabase() {
                     context.applicationContext,
                     TaskDatabase::class.java,
                     "taskflow.db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration()  // ← ⚠️ 只在開發期用！
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
     }

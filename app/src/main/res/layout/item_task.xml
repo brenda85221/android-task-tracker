@@ -13,14 +13,14 @@
         android:orientation="horizontal"
         android:padding="12dp">
 
-        <!-- 左邊勾選框 -->
+        <!-- CheckBox -->
         <CheckBox
             android:id="@+id/cbCompleted"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="12dp" />
 
-        <!-- 中間內容 -->
+        <!-- Title & Due -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -43,7 +43,7 @@
 
         </LinearLayout>
 
-        <!-- 右邊操作按鈕 -->
+        <!-- Edit Button -->
         <ImageButton
             android:id="@+id/btnEdit"
             android:layout_width="wrap_content"
@@ -51,6 +51,7 @@
             android:src="@android:drawable/ic_menu_edit"
             android:background="?attr/selectableItemBackgroundBorderless" />
 
+        <!-- Delete Button -->
         <ImageButton
             android:id="@+id/btnDelete"
             android:layout_width="wrap_content"
@@ -60,4 +61,5 @@
             android:background="?attr/selectableItemBackgroundBorderless" />
 
     </LinearLayout>
+
 </androidx.cardview.widget.CardView>

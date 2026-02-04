@@ -62,11 +62,20 @@
             android:layout_marginTop="12dp" />
 
         <!-- 顏色選擇 (簡單用 RadioGroup 示意) -->
+<!--        <TextView-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginTop="12dp"-->
+<!--            android:text="任務顏色" />-->
+
         <TextView
+            android:id="@+id/tvColorTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="任務顏色" />
+            android:text="任務種類"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
         <RadioGroup
             android:id="@+id/rgColors"

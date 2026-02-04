@@ -20,4 +20,21 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getTaskById(id: Long): TaskEntity?  // ✅ Long
+
+    //------Color-----------------
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertColor(color: TaskColor): Long
+
+    @Update
+    suspend fun updateColor(color: TaskColor)
+
+    @Delete
+    suspend fun deleteColor(color: TaskColor)
+
+    @Query("SELECT * FROM task_colors ORDER BY isDefault DESC")
+    fun getAllColors(): Flow<List<TaskColor>>
+
+    @Query("SELECT * FROM task_colors WHERE id = :id")
+    suspend fun getColorById(id: Int): TaskColor?
+
 }
