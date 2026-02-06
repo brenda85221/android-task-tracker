@@ -1,7 +1,7 @@
 package com.taskflow.taskflow2.ui.fragment
 
+import android.app.Dialog
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -10,26 +10,24 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
+import com.taskflow.taskflow2.data.local.TaskEntity
+import com.taskflow.taskflow2.databinding.DialogTaskImageBinding
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
+import com.taskflow.taskflow2.ui.dialog.CreateTaskDialogFragment
+import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class TaskListFragment : Fragment() {
+class TaskListFragment : Fragment(R.layout.fragment_task_list) {
 
     private val db by lazy { TaskDatabase.getInstance(requireContext()) }
     private val taskDao by lazy { db.taskDao() }
-    private lateinit var taskAdapter: TaskAdapter
-    private var selectedColorFilter: String? = null  // ← 篩選用
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_task_list, container, false)
-    }
+    private lateinit var taskAdapter: TaskAdapter
+    private var selectedColorFilter: String? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -41,12 +39,43 @@ class TaskListFragment : Fragment() {
         rvTasks.layoutManager = LinearLayoutManager(requireContext())
         rvTasks.adapter = taskAdapter
 
-        // 監聽顏色變化，動態生成篩選按鈕
+        taskAdapter.onItemClick = { task ->
+            TaskImageDialog.show(requireContext(), task, viewLifecycleOwner.lifecycleScope) {
+                // optional: Dialog 關閉後刷新列表
+                refreshTaskList()
+            }
+        }
+
+        taskAdapter.onEdit = { task ->
+            // 呼叫 CreateTaskDialogFragment 編輯
+            val dialog = CreateTaskDialogFragment.newInstance(task)
+            dialog.onSave = {
+                // 編輯完成後刷新列表
+                refreshTaskList()
+            }
+            dialog.show(parentFragmentManager, "EditTaskDialog")
+        }
+
+        taskAdapter.onDelete = { taskId ->
+            lifecycleScope.launch {
+                taskDao.deleteTask(taskId)
+                refreshTaskList()
+            }
+        }
+
+
+        taskAdapter.onToggle = { task ->
+            lifecycleScope.launch {
+                taskDao.updateTask(task)
+                refreshTaskList()
+            }
+        }
+
+        // ---------------- 顏色篩選 ----------------
         lifecycleScope.launch {
             taskDao.getAllColors().collectLatest { colors ->
                 colorFilterContainer.removeAllViews()
 
-                // "全部" 按鈕
                 Button(requireContext()).apply {
                     text = "全部"
                     setOnClickListener {
@@ -56,7 +85,6 @@ class TaskListFragment : Fragment() {
                     colorFilterContainer.addView(this)
                 }
 
-                // 各顏色篩選按鈕
                 colors.forEach { color ->
                     Button(requireContext()).apply {
                         text = color.colorName
@@ -76,12 +104,10 @@ class TaskListFragment : Fragment() {
     private fun refreshTaskList() {
         lifecycleScope.launch {
             taskDao.getAllTasks().collectLatest { tasks ->
-                val filtered = if (selectedColorFilter != null) {
-                    tasks.filter { it.colorTag == selectedColorFilter }
-                } else {
-                    tasks
-                }
-                // 依 dueDate 由近到遠排序
+                val filtered = selectedColorFilter?.let { filter ->
+                    tasks.filter { it.colorTag == filter }
+                } ?: tasks
+
                 taskAdapter.submitList(filtered.sortedBy { it.dueDate })
             }
         }

@@ -42,14 +42,23 @@
                 android:textSize="12sp" />
 
             <!-- 圖片區域 -->
-            <ImageView
-                android:id="@+id/ivTaskImage"
-                android:layout_width="match_parent"
-                android:layout_height="120dp"
-                android:layout_marginBottom="8dp"
-                android:scaleType="centerCrop"
+<!--            <ImageView-->
+<!--                android:id="@+id/ivTaskImage"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="120dp"-->
+<!--                android:layout_marginBottom="8dp"-->
+<!--                android:scaleType="centerCrop"-->
+<!--                android:visibility="gone"-->
+<!--                app:srcCompat="@drawable/ic_image_placeholder" />-->
+            <!-- 提示是否有圖片 -->
+            <TextView
+                android:id="@+id/tvImageHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📷"
                 android:visibility="gone"
-                app:srcCompat="@drawable/ic_image_placeholder" />
+                android:textSize="12sp"
+                android:textColor="@android:color/holo_blue_dark" />
 
         </LinearLayout>
 
