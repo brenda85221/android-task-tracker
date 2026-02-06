@@ -3,13 +3,13 @@
     <item
         android:id="@+id/nav_calendar"
         android:icon="@android:drawable/ic_menu_today"
-        android:title="日曆" />
+        android:title="月" />
     <item
         android:id="@+id/nav_list"
         android:icon="@android:drawable/ic_menu_agenda"
-        android:title="條列" />
+        android:title="列表" />
     <item
         android:id="@+id/nav_colors"
         android:icon="@android:drawable/ic_menu_more"
-        android:title="顏色設定" />
+        android:title="任務種類設定" />
 </menu>

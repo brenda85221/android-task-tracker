@@ -2,159 +2,171 @@ package com.taskflow.taskflow2
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.taskflow.taskflow2.data.local.TaskColor
 import com.taskflow.taskflow2.data.local.TaskDatabase
 import com.taskflow.taskflow2.data.local.TaskEntity
-import com.taskflow.taskflow2.data.local.TaskDao
 import com.taskflow.taskflow2.databinding.ActivityMainBinding
-import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.fragment.CalendarFragment
-import com.taskflow.taskflow2.ui.fragment.TaskListFragment
 import com.taskflow.taskflow2.ui.fragment.ColorSettingFragment
+import com.taskflow.taskflow2.ui.fragment.TaskListFragment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Calendar
-
+import androidx.activity.result.PickVisualMediaRequest
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private val db by lazy { TaskDatabase.getInstance(this) }
-    private val taskDao by lazy { db.taskDao() }
+
+    private val taskDao by lazy {
+        TaskDatabase.getInstance(this).taskDao()
+    }
+
+    /** 使用者選到的圖片（App 私有路徑） */
+    private var selectedImagePath: String? = null
+
+    /** Photo Picker */
+    private val pickImageLauncher =
+        registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            uri ?: return@registerForActivityResult
+
+            lifecycleScope.launch {
+                selectedImagePath = copyImageToAppDir(uri)
+                currentDialogImageText?.text =
+                    selectedImagePath?.let { "已選擇：${File(it).name}" } ?: "圖片儲存失敗"
+            }
+        }
+
+    /** 對話框內的 Image TextView 參考 */
+    private var currentDialogImageText: TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 預設顯示條列分頁
         if (savedInstanceState == null) {
             loadFragment(TaskListFragment())
         }
 
-        // 底部導覽監聽
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_calendar -> {
-                    loadFragment(CalendarFragment())
-                    true
-                }
-                R.id.nav_list -> {
-                    loadFragment(TaskListFragment())
-                    true
-                }
-                R.id.nav_colors -> {
-                    loadFragment(ColorSettingFragment())
-                    true
-                }
+                R.id.nav_calendar -> loadFragment(CalendarFragment())
+                R.id.nav_list -> loadFragment(TaskListFragment())
+                R.id.nav_colors -> loadFragment(ColorSettingFragment())
                 else -> false
             }
         }
 
-        // 🆕 浮動按鈕 - 所有分頁通用
         binding.fabAddTask.setOnClickListener {
-            // 目前只有 TaskListFragment 有新增任務需求
-            // 可以根據當前分頁決定行為，或統一顯示對話框
             showCreateTaskDialog()
-            Toast.makeText(this, "新增任務", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun loadFragment(fragment: Fragment) {
+    private fun loadFragment(fragment: Fragment): Boolean {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment)
-            .addToBackStack(null)
             .commit()
+        return true
     }
 
     private fun showCreateTaskDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_create_task, null)
+        val view = layoutInflater.inflate(R.layout.dialog_create_task, null)
 
-        val etTitle = dialogView.findViewById<EditText>(R.id.etTitle)
-        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
-        val etNotes = dialogView.findViewById<EditText>(R.id.etNotes)
-        val btnDate = dialogView.findViewById<Button>(R.id.btnDate)
-        val btnTime = dialogView.findViewById<Button>(R.id.btnTime)
-        val spinnerReminder = dialogView.findViewById<Spinner>(R.id.spinnerReminder)
-        val tvColorTitle = dialogView.findViewById<TextView>(R.id.tvColorTitle)  // ← 新增標題
-        val rgColors = dialogView.findViewById<RadioGroup>(R.id.rgColors)
-        val btnCancel = dialogView.findViewById<Button>(R.id.btnCancel)
-        val btnSave = dialogView.findViewById<Button>(R.id.btnSave)
+        val etTitle = view.findViewById<EditText>(R.id.etTitle)
+        val etDescription = view.findViewById<EditText>(R.id.etDescription)
+        val etNotes = view.findViewById<EditText>(R.id.etNotes)
+        val btnDate = view.findViewById<Button>(R.id.btnDate)
+        val btnTime = view.findViewById<Button>(R.id.btnTime)
+        val spinnerReminder = view.findViewById<Spinner>(R.id.spinnerReminder)
+        val rgColors = view.findViewById<RadioGroup>(R.id.rgColors)
+        val tvSelectedImage = view.findViewById<TextView>(R.id.tvSelectedImage)
+        val btnSelectImage = view.findViewById<Button>(R.id.btnSelectImage)
+        val btnSave = view.findViewById<Button>(R.id.btnSave)
+        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
+
+        currentDialogImageText = tvSelectedImage
+        selectedImagePath = null
 
         var selectedDateMillis = System.currentTimeMillis()
         var selectedTime = "09:00"
-        var selectedColorId: Int? = null  // ← 新增：選中的顏色 ID
 
-        // 日期選擇
         btnDate.setOnClickListener {
-            val cal = Calendar.getInstance()
-            val year = cal.get(Calendar.YEAR)
-            val month = cal.get(Calendar.MONTH)
-            val day = cal.get(Calendar.DAY_OF_MONTH)
-
-            DatePickerDialog(this, { _, y, m, d ->
-                val c = Calendar.getInstance()
-                c.set(y, m, d, 0, 0, 0)
-                selectedDateMillis = c.timeInMillis
-                btnDate.text = "%04d-%02d-%02d".format(y, m + 1, d)
-            }, year, month, day).show()
+            val c = Calendar.getInstance()
+            DatePickerDialog(
+                this,
+                { _, y, m, d ->
+                    val cal = Calendar.getInstance().apply {
+                        set(y, m, d, 0, 0)
+                    }
+                    selectedDateMillis = cal.timeInMillis
+                    btnDate.text = "%04d-%02d-%02d".format(y, m + 1, d)
+                },
+                c.get(Calendar.YEAR),
+                c.get(Calendar.MONTH),
+                c.get(Calendar.DAY_OF_MONTH)
+            ).show()
         }
 
-        // 時間選擇
         btnTime.setOnClickListener {
-            val cal = Calendar.getInstance()
-            val hour = cal.get(Calendar.HOUR_OF_DAY)
-            val minute = cal.get(Calendar.MINUTE)
-
-            TimePickerDialog(this, { _, h, m ->
-                selectedTime = "%02d:%02d".format(h, m)
-                btnTime.text = selectedTime
-            }, hour, minute, true).show()
+            val c = Calendar.getInstance()
+            TimePickerDialog(
+                this,
+                { _, h, m ->
+                    selectedTime = "%02d:%02d".format(h, m)
+                    btnTime.text = selectedTime
+                },
+                c.get(Calendar.HOUR_OF_DAY),
+                c.get(Calendar.MINUTE),
+                true
+            ).show()
         }
 
-        // 提醒頻率選單
-        val reminderOptions = arrayOf("一次性", "每天", "每週")
-        val adapter = ArrayAdapter(
+        spinnerReminder.adapter = ArrayAdapter(
             this,
-            android.R.layout.simple_spinner_item,
-            reminderOptions
-        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-        spinnerReminder.adapter = adapter
+            android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("一次性", "每天", "每週")
+        )
 
-        // 🆕 動態載入任務顏色
         lifecycleScope.launch {
             taskDao.getAllColors().collectLatest { colors ->
-                rgColors.removeAllViews()  // 清空舊的 RadioButton
-
-                if (colors.isEmpty()) {
-                    // 沒有顏色時顯示預設
-                    tvColorTitle.text = "任務種類"
-                    val defaultColor = TaskColor(colorName = "藍色", colorTag = "#2196F3")
-                    createColorRadioButton(defaultColor, rgColors, 0)
-                    return@collectLatest
-                }
-
-                tvColorTitle.text = "任務種類"  // ← 顯示標題
-                colors.forEachIndexed { index, color ->
-                    createColorRadioButton(color, rgColors, index)
+                rgColors.removeAllViews()
+                colors.forEach { color ->
+                    rgColors.addView(RadioButton(this@MainActivity).apply {
+                        text = color.colorName
+                        tag = color
+                        id = View.generateViewId()
+                    })
                 }
             }
         }
 
+        btnSelectImage.setOnClickListener {
+            pickImageLauncher.launch(
+                PickVisualMediaRequest(
+                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
+        }
+
+
+
         val dialog = AlertDialog.Builder(this)
             .setTitle("新增任務")
-            .setView(dialogView)
+            .setView(view)
             .setCancelable(false)
             .create()
 
@@ -162,13 +174,18 @@ class MainActivity : AppCompatActivity() {
 
         btnSave.setOnClickListener {
             val title = etTitle.text.toString().trim()
-            val description = etDescription.text.toString().trim()
-            val notes = etNotes.text.toString().trim()
-
             if (title.isEmpty()) {
                 etTitle.error = "標題必填"
                 return@setOnClickListener
             }
+
+            val selectedColor =
+                rgColors.findViewById<RadioButton>(rgColors.checkedRadioButtonId)
+                    ?.tag as? TaskColor
+                    ?: run {
+                        Toast.makeText(this, "請選擇任務種類", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
 
             val reminderType = when (spinnerReminder.selectedItemPosition) {
                 1 -> "DAILY"
@@ -176,25 +193,20 @@ class MainActivity : AppCompatActivity() {
                 else -> "ONCE"
             }
 
-            val checkedId = rgColors.checkedRadioButtonId
-            val selectedColor = rgColors.findViewById<RadioButton>(checkedId)?.tag as? TaskColor
-            if (selectedColor == null) {
-                Toast.makeText(this, "請選擇任務種類", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
             lifecycleScope.launch {
-                val task = TaskEntity(
-                    title = title,
-                    description = description,
-                    notes = notes,
-                    dueDate = selectedDateMillis,
-                    dueTime = selectedTime,
-                    reminderType = reminderType,
-                    colorTag = selectedColor.colorTag,
-                    colorName = selectedColor.colorName
+                taskDao.insertTask(
+                    TaskEntity(
+                        title = title,
+                        description = etDescription.text.toString(),
+                        notes = etNotes.text.toString(),
+                        dueDate = selectedDateMillis,
+                        dueTime = selectedTime,
+                        reminderType = reminderType,
+                        colorTag = selectedColor.colorTag,
+                        colorName = selectedColor.colorName,
+                        imageUri = selectedImagePath
+                    )
                 )
-                taskDao.insertTask(task)
             }
 
             dialog.dismiss()
@@ -203,24 +215,22 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // 🆕 建立 RadioButton 的輔助函數
-    private fun createColorRadioButton(color: TaskColor, radioGroup: RadioGroup, index: Int) {
-        val radioButton = RadioButton(this).apply {
-            text = color.colorName
-            tag = color  // ← 儲存顏色物件
-            id = View.generateViewId()  // ← 產生唯一 ID
-            setPadding(0, 0, 0, 0)
+    private suspend fun copyImageToAppDir(uri: Uri): String? =
+        withContext(Dispatchers.IO) {
+            try {
+                val dir = File(filesDir, "tasks").apply { mkdirs() }
+                val file = File(dir, "task_${System.currentTimeMillis()}.jpg")
+
+                contentResolver.openInputStream(uri)?.use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                file.absolutePath
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
         }
-
-        radioGroup.addView(radioButton)
-
-        // 預設第一個選中
-//        if (index == 0) {
-//            radioButton.isChecked = true
-//            selectedColorId = color.id
-//        }
-    }
-
-
-
 }
