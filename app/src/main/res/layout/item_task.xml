@@ -35,11 +35,18 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvDue"
+                android:id="@+id/tvDate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textSize="12sp" />
+
+<!--            <TextView-->
+<!--                android:id="@+id/tvDue"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_marginTop="4dp"-->
+<!--                android:textSize="12sp" />-->
 
             <!-- 圖片區域 -->
 <!--            <ImageView-->

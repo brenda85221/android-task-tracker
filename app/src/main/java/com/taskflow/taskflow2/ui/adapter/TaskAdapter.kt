@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskEntity
+import com.taskflow.taskflow2.util.toFormattedDate
 
 class TaskAdapter : ListAdapter<TaskEntity, TaskAdapter.TaskViewHolder>(TaskDiffCallback()) {
 
@@ -33,14 +34,16 @@ class TaskAdapter : ListAdapter<TaskEntity, TaskAdapter.TaskViewHolder>(TaskDiff
     inner class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
         private val tvTitle: TextView = itemView.findViewById(R.id.tvTitle)
-        private val tvDue: TextView = itemView.findViewById(R.id.tvDue)
+//        private val tvDue: TextView = itemView.findViewById(R.id.tvDue)
+        private val tvDate: TextView = itemView.findViewById(R.id.tvDate)
         private val cbCompleted: CheckBox = itemView.findViewById(R.id.cbCompleted)
         private val btnEdit: ImageButton = itemView.findViewById(R.id.btnEdit)
         private val btnDelete: ImageButton = itemView.findViewById(R.id.btnDelete)
         private val tvImageHint: TextView = itemView.findViewById(R.id.tvImageHint)
         fun bind(task: TaskEntity) {
             tvTitle.text = task.title
-            tvDue.text = task.dueTime
+            tvDate.text = task.dueAt.toFormattedDate()
+//            tvDate.text = task.dueDate
             cbCompleted.isChecked = task.isCompleted
 
             // 顯示是否有圖片的提示
@@ -55,10 +58,10 @@ class TaskAdapter : ListAdapter<TaskEntity, TaskAdapter.TaskViewHolder>(TaskDiff
                     (Color.red(bgColor) * 0.299 + Color.green(bgColor) * 0.587 + Color.blue(bgColor) * 0.114) / 255
                 val textColor = if (luminance > 0.5) Color.BLACK else Color.WHITE
                 tvTitle.setTextColor(textColor)
-                tvDue.setTextColor(textColor)
+                tvDate.setTextColor(textColor)
             } catch (e: Exception) {
                 tvTitle.setTextColor(Color.BLACK)
-                tvDue.setTextColor(Color.BLACK)
+                tvDate.setTextColor(Color.BLACK)
             }
 
             // ----------- 事件監聽 -----------

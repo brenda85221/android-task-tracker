@@ -10,11 +10,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
-import com.taskflow.taskflow2.data.local.TaskEntity
-import com.taskflow.taskflow2.databinding.DialogTaskImageBinding
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.dialog.CreateTaskDialogFragment
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
@@ -108,7 +105,7 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
                     tasks.filter { it.colorTag == filter }
                 } ?: tasks
 
-                taskAdapter.submitList(filtered.sortedBy { it.dueDate })
+                taskAdapter.submitList(filtered)
             }
         }
     }

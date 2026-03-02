@@ -64,54 +64,59 @@ class CreateTaskDialogFragment : DialogFragment() {
     ): View {
         _binding = DialogCreateTaskBinding.inflate(inflater, container, false)
 
-        var selectedDateMillis = System.currentTimeMillis()
-        var selectedTime = "09:00"
+        var selectedCalendar = Calendar.getInstance()
 
         // ---------- 編輯模式填充資料 ----------
         editTask?.let { task ->
             binding.etTitle.setText(task.title)
-            binding.etDescription.setText(task.description)
             binding.etNotes.setText(task.notes)
+
             selectedImagePath = task.imageUri
-            binding.tvSelectedImage.text = selectedImagePath?.let { "已選擇：${File(it).name}" } ?: ""
-            selectedDateMillis = task.dueDate
-            selectedTime = task.dueTime
-            binding.btnDate.text = "%04d-%02d-%02d".format(
-                Calendar.getInstance().apply { timeInMillis = task.dueDate }.get(Calendar.YEAR),
-                Calendar.getInstance().apply { timeInMillis = task.dueDate }.get(Calendar.MONTH) + 1,
-                Calendar.getInstance().apply { timeInMillis = task.dueDate }.get(Calendar.DAY_OF_MONTH)
-            )
-            binding.btnTime.text = task.dueTime
+            binding.tvSelectedImage.text =
+                selectedImagePath?.let { "已選擇：${File(it).name}" } ?: ""
+
+            selectedCalendar.timeInMillis = task.dueAt
+
+            val y = selectedCalendar.get(Calendar.YEAR)
+            val m = selectedCalendar.get(Calendar.MONTH) + 1
+            val d = selectedCalendar.get(Calendar.DAY_OF_MONTH)
+            val h = selectedCalendar.get(Calendar.HOUR_OF_DAY)
+            val min = selectedCalendar.get(Calendar.MINUTE)
+
+            binding.btnDate.text = "%04d-%02d-%02d".format(y, m, d)
+            binding.btnTime.text = "%02d:%02d".format(h, min)
         }
 
         // ---------- 日期選擇 ----------
-        binding.btnDate.setOnClickListener {
-            val c = Calendar.getInstance()
-            DatePickerDialog(
+        binding.btnTime.setOnClickListener {
+            TimePickerDialog(
                 requireContext(),
-                { _, y, m, d ->
-                    val cal = Calendar.getInstance().apply { set(y, m, d, 0, 0) }
-                    selectedDateMillis = cal.timeInMillis
-                    binding.btnDate.text = "%04d-%02d-%02d".format(y, m + 1, d)
+                { _, h, m ->
+                    selectedCalendar.set(Calendar.HOUR_OF_DAY, h)
+                    selectedCalendar.set(Calendar.MINUTE, m)
+
+                    binding.btnTime.text = "%02d:%02d".format(h, m)
                 },
-                c.get(Calendar.YEAR),
-                c.get(Calendar.MONTH),
-                c.get(Calendar.DAY_OF_MONTH)
+                selectedCalendar.get(Calendar.HOUR_OF_DAY),
+                selectedCalendar.get(Calendar.MINUTE),
+                true
             ).show()
         }
 
         // ---------- 時間選擇 ----------
-        binding.btnTime.setOnClickListener {
-            val c = Calendar.getInstance()
-            TimePickerDialog(
+        binding.btnDate.setOnClickListener {
+            DatePickerDialog(
                 requireContext(),
-                { _, h, m ->
-                    selectedTime = "%02d:%02d".format(h, m)
-                    binding.btnTime.text = selectedTime
+                { _, y, m, d ->
+                    selectedCalendar.set(Calendar.YEAR, y)
+                    selectedCalendar.set(Calendar.MONTH, m)
+                    selectedCalendar.set(Calendar.DAY_OF_MONTH, d)
+
+                    binding.btnDate.text = "%04d-%02d-%02d".format(y, m + 1, d)
                 },
-                c.get(Calendar.HOUR_OF_DAY),
-                c.get(Calendar.MINUTE),
-                true
+                selectedCalendar.get(Calendar.YEAR),
+                selectedCalendar.get(Calendar.MONTH),
+                selectedCalendar.get(Calendar.DAY_OF_MONTH)
             ).show()
         }
 
@@ -179,13 +184,11 @@ class CreateTaskDialogFragment : DialogFragment() {
                     taskDao.updateTask(
                         editTask!!.copy(
                             title = title,
-                            description = binding.etDescription.text.toString(),
                             notes = binding.etNotes.text.toString(),
-                            dueDate = selectedDateMillis,
-                            dueTime = selectedTime,
+                            dueAt = selectedCalendar.timeInMillis,
                             reminderType = reminderType,
                             colorTag = selectedColor.colorTag,
-                            colorName = selectedColor.colorName,
+                            categoryName = selectedColor.colorName,
                             imageUri = selectedImagePath
                         )
                     )
@@ -194,13 +197,11 @@ class CreateTaskDialogFragment : DialogFragment() {
                     taskDao.insertTask(
                         TaskEntity(
                             title = title,
-                            description = binding.etDescription.text.toString(),
                             notes = binding.etNotes.text.toString(),
-                            dueDate = selectedDateMillis,
-                            dueTime = selectedTime,
+                            dueAt = selectedCalendar.timeInMillis,
                             reminderType = reminderType,
                             colorTag = selectedColor.colorTag,
-                            colorName = selectedColor.colorName,
+                            categoryName = selectedColor.colorName,
                             imageUri = selectedImagePath
                         )
                     )
