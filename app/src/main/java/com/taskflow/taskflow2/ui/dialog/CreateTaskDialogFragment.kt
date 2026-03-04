@@ -17,6 +17,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import com.taskflow.taskflow2.data.local.TaskColor
 import com.taskflow.taskflow2.data.local.TaskDatabase
 import com.taskflow.taskflow2.data.local.TaskEntity
+import com.taskflow.taskflow2.data.local.TaskWithColor
 import com.taskflow.taskflow2.databinding.DialogCreateTaskBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -34,11 +35,11 @@ class CreateTaskDialogFragment : DialogFragment() {
     private val binding get() = _binding!!
 
     // ---------- 編輯用 ----------
-    var editTask: TaskEntity? = null
+    var editTask: TaskWithColor? = null
     var onSave: (() -> Unit)? = null
 
     companion object {
-        fun newInstance(task: TaskEntity? = null): CreateTaskDialogFragment {
+        fun newInstance(task: TaskWithColor? = null): CreateTaskDialogFragment {
             val fragment = CreateTaskDialogFragment()
             fragment.editTask = task
             return fragment
@@ -67,7 +68,8 @@ class CreateTaskDialogFragment : DialogFragment() {
         var selectedCalendar = Calendar.getInstance()
 
         // ---------- 編輯模式填充資料 ----------
-        editTask?.let { task ->
+        editTask?.let { taskWithColor ->
+            val task = taskWithColor.task
             binding.etTitle.setText(task.title)
             binding.etNotes.setText(task.notes)
 
@@ -103,7 +105,6 @@ class CreateTaskDialogFragment : DialogFragment() {
             ).show()
         }
 
-        // ---------- 時間選擇 ----------
         binding.btnDate.setOnClickListener {
             DatePickerDialog(
                 requireContext(),
@@ -137,8 +138,8 @@ class CreateTaskDialogFragment : DialogFragment() {
                             text = color.colorName
                             tag = color
                             id = View.generateViewId()
-                            // 如果是編輯模式，預設選中
-                            if (editTask?.colorTag == color.colorTag) {
+                            // 編輯模式，預設選中
+                            if (editTask?.task?.colorId == color.id) {
                                 isChecked = true
                             }
                         }
@@ -181,14 +182,14 @@ class CreateTaskDialogFragment : DialogFragment() {
             lifecycleScope.launch {
                 if (editTask != null) {
                     // 編輯模式
+                    val oldTask = editTask!!.task
                     taskDao.updateTask(
-                        editTask!!.copy(
+                        oldTask.copy(
                             title = title,
                             notes = binding.etNotes.text.toString(),
                             dueAt = selectedCalendar.timeInMillis,
                             reminderType = reminderType,
-                            colorTag = selectedColor.colorTag,
-                            categoryName = selectedColor.colorName,
+                            colorId = selectedColor.id,
                             imageUri = selectedImagePath
                         )
                     )
@@ -200,8 +201,7 @@ class CreateTaskDialogFragment : DialogFragment() {
                             notes = binding.etNotes.text.toString(),
                             dueAt = selectedCalendar.timeInMillis,
                             reminderType = reminderType,
-                            colorTag = selectedColor.colorTag,
-                            categoryName = selectedColor.colorName,
+                            colorId = selectedColor.id,
                             imageUri = selectedImagePath
                         )
                     )

@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class TaskColor(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val colorName: String,      // "Red", "Blue", 自訂名稱
+    val colorName: String,
     val colorTag: String,        // "#F44336", 十六進位
     val isDefault: Boolean = false
 )

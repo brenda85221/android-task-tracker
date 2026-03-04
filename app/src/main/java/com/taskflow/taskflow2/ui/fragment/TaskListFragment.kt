@@ -1,9 +1,7 @@
 package com.taskflow.taskflow2.ui.fragment
 
-import android.app.Dialog
 import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
@@ -12,6 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
+import com.taskflow.taskflow2.data.local.TaskWithColor
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.dialog.CreateTaskDialogFragment
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
@@ -32,38 +31,43 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
         val rvTasks = view.findViewById<RecyclerView>(R.id.rvTasks)
         val colorFilterContainer = view.findViewById<LinearLayout>(R.id.colorFilterContainer)
 
+        // Adapter 現在要使用 TaskWithColor
         taskAdapter = TaskAdapter()
         rvTasks.layoutManager = LinearLayoutManager(requireContext())
         rvTasks.adapter = taskAdapter
 
-        taskAdapter.onItemClick = { task ->
-            TaskImageDialog.show(requireContext(), task, viewLifecycleOwner.lifecycleScope) {
-                // optional: Dialog 關閉後刷新列表
+        // 點擊顯示圖片
+        taskAdapter.onItemClick = { taskWithColor ->
+            TaskImageDialog.show(
+                requireContext(),
+                taskWithColor.task,
+                viewLifecycleOwner.lifecycleScope
+            ) {
                 refreshTaskList()
             }
         }
 
-        taskAdapter.onEdit = { task ->
-            // 呼叫 CreateTaskDialogFragment 編輯
-            val dialog = CreateTaskDialogFragment.newInstance(task)
+        // 編輯任務
+        taskAdapter.onEdit = { taskWithColor ->
+            val dialog = CreateTaskDialogFragment.newInstance(taskWithColor)
             dialog.onSave = {
-                // 編輯完成後刷新列表
                 refreshTaskList()
             }
             dialog.show(parentFragmentManager, "EditTaskDialog")
         }
 
-        taskAdapter.onDelete = { taskId ->
+        // 刪除任務
+        taskAdapter.onDelete = { taskWithColor ->
             lifecycleScope.launch {
-                taskDao.deleteTask(taskId)
+                taskDao.deleteTask(taskWithColor.task)
                 refreshTaskList()
             }
         }
 
-
-        taskAdapter.onToggle = { task ->
+        // 切換完成 / 未完成
+        taskAdapter.onToggle = { taskWithColor ->
             lifecycleScope.launch {
-                taskDao.updateTask(task)
+                taskDao.updateTask(taskWithColor.task)
                 refreshTaskList()
             }
         }
@@ -73,6 +77,7 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
             taskDao.getAllColors().collectLatest { colors ->
                 colorFilterContainer.removeAllViews()
 
+                // 全部按鈕
                 Button(requireContext()).apply {
                     text = "全部"
                     setOnClickListener {
@@ -82,6 +87,7 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
                     colorFilterContainer.addView(this)
                 }
 
+                // 每個顏色按鈕
                 colors.forEach { color ->
                     Button(requireContext()).apply {
                         text = color.colorName
@@ -101,8 +107,9 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
     private fun refreshTaskList() {
         lifecycleScope.launch {
             taskDao.getAllTasks().collectLatest { tasks ->
+                // 篩選顏色（tasks: List<TaskWithColor>）
                 val filtered = selectedColorFilter?.let { filter ->
-                    tasks.filter { it.colorTag == filter }
+                    tasks.filter { it.color?.colorTag == filter }
                 } ?: tasks
 
                 taskAdapter.submitList(filtered)

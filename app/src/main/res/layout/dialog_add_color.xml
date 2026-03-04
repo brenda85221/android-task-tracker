@@ -9,13 +9,36 @@
         android:id="@+id/etColorName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="顏色名稱"
+        android:hint="任務種類"
         android:layout_marginBottom="12dp" />
 
-    <EditText
-        android:id="@+id/etColorTag"
+<!--    <GridLayout-->
+<!--        android:id="@+id/gridColors"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:columnCount="4"-->
+<!--        android:alignmentMode="alignMargins"-->
+<!--        android:rowOrderPreserved="false"-->
+<!--        android:layout_marginTop="8dp" />-->
+    <!-- 中間間距 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="16dp" />
+
+    <!-- 🔥 這個包起來負責置中 -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="十六進位代碼 (如 #F44336)" />
+        android:layout_gravity="center">
+
+        <GridLayout
+            android:id="@+id/gridColors"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:columnCount="4"
+            android:alignmentMode="alignMargins"
+            android:layout_gravity="center" />
+
+    </FrameLayout>
 
 </LinearLayout>

@@ -11,9 +11,28 @@ import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskColor
 
-class ColorAdapter(
-    val onEdit: (TaskColor) -> Unit
-) : ListAdapter<TaskColor, ColorAdapter.ColorViewHolder>(ColorDiffCallback()) {  // ← 加上 <TaskColor, ColorViewHolder>
+class ColorGridAdapter(
+    private val onClick: (TaskColor) -> Unit
+) : ListAdapter<TaskColor, ColorGridAdapter.ColorViewHolder>(ColorDiffCallback()) {
+
+    inner class ColorViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+        fun bind(color: TaskColor) {
+            // 顯示顏色名稱
+            val tvName = view.findViewById<TextView>(R.id.tvColorName)
+            tvName.text = color.colorName
+
+            // 設定色塊背景
+            val colorBlock = view.findViewById<View>(R.id.viewColor)
+            try {
+                colorBlock.setBackgroundColor(Color.parseColor(color.colorTag))
+            } catch (e: Exception) {
+                colorBlock.setBackgroundColor(Color.GRAY)
+            }
+
+            // 點擊事件：直接回傳 color，外部 Fragment 處理彈窗
+            view.setOnClickListener { onClick(color) }
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ColorViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -23,22 +42,6 @@ class ColorAdapter(
 
     override fun onBindViewHolder(holder: ColorViewHolder, position: Int) {
         holder.bind(getItem(position))
-    }
-
-    inner class ColorViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val tvColorName = itemView.findViewById<TextView>(R.id.tvColorName)
-        private val viewColor = itemView.findViewById<View>(R.id.viewColor)
-
-        fun bind(color: TaskColor) {
-            tvColorName.text = "${color.colorName} (${color.colorTag})"
-            try {
-                viewColor.setBackgroundColor(Color.parseColor(color.colorTag))
-            } catch (e: Exception) {
-                // 無效顏色代碼，保持預設顏色
-                viewColor.setBackgroundColor(Color.BLUE)
-            }
-            itemView.setOnClickListener { onEdit(color) }
-        }
     }
 
     class ColorDiffCallback : DiffUtil.ItemCallback<TaskColor>() {

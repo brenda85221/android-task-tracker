@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TaskDao {
 
+    // ---------------- Tasks ----------------
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTask(task: TaskEntity): Long
 
@@ -15,13 +16,19 @@ interface TaskDao {
     @Delete
     suspend fun deleteTask(task: TaskEntity)
 
-    @Query("SELECT * FROM tasks ORDER BY  isPinned DESC, dueAt ASC")
-    fun getAllTasks(): Flow<List<TaskEntity>>
+    // 🔥 回傳關聯資料 Task + Color
+    @Transaction
+    @Query("""
+        SELECT * FROM tasks
+        ORDER BY isPinned DESC, isCompleted ASC, dueAt ASC
+    """)
+    fun getAllTasks(): Flow<List<TaskWithColor>>
 
+    @Transaction
     @Query("SELECT * FROM tasks WHERE id = :id")
-    suspend fun getTaskById(id: Long): TaskEntity?  // ✅ Long
+    suspend fun getTaskById(id: Long): TaskWithColor?
 
-    //------Color-----------------
+    // ---------------- Colors ----------------
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertColor(color: TaskColor): Long
 
@@ -36,5 +43,4 @@ interface TaskDao {
 
     @Query("SELECT * FROM task_colors WHERE id = :id")
     suspend fun getColorById(id: Int): TaskColor?
-
 }

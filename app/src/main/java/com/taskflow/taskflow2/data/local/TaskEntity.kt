@@ -1,9 +1,21 @@
 package com.taskflow.taskflow2.data.local
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "tasks")
+//@Entity(tableName = "tasks")
+@Entity(
+    tableName = "tasks",
+    foreignKeys = [
+        ForeignKey(
+            entity = TaskColor::class,
+            parentColumns = ["id"],
+            childColumns = ["colorId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ]
+)
 data class TaskEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
@@ -17,8 +29,8 @@ data class TaskEntity(
     val reminderDays: Int = 0,
     val isReminderEnabled: Boolean = true,
 
-    val colorTag: String = "#2196F3",
-    val categoryName: String = "General",
+    val colorId: Int? = null,
+
     val imageUri: String? = null,
 
     val isRecurring: Boolean = false,

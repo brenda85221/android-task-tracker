@@ -9,7 +9,7 @@
         android:id="@+id/btnAddColor"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="+ 新增任務" />
+        android:text="+ 新增任務類別" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvColors"

@@ -1,9 +1,7 @@
 package com.taskflow.taskflow2.ui.fragment
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -12,12 +10,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
-import com.taskflow.taskflow2.data.local.TaskEntity
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Calendar
+import java.util.Locale
 
 class CalendarFragment : Fragment(R.layout.fragment_calendar) {
 
@@ -40,29 +38,34 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
         rvTasks.adapter = taskAdapter
 
         // ---------------- TaskAdapter Callback ----------------
-        taskAdapter.onItemClick = { task ->
+        taskAdapter.onItemClick = { taskWithColor ->
+            val task = taskWithColor.task
             // 只有有圖片才打開 Dialog
             if (!task.imageUri.isNullOrEmpty()) {
-                TaskImageDialog.show(requireContext(), task, viewLifecycleOwner.lifecycleScope) {
+                TaskImageDialog.show(
+                    requireContext(),
+                    task,
+                    viewLifecycleOwner.lifecycleScope
+                ) {
                     refreshTaskList()
                 }
             }
         }
 
-        taskAdapter.onEdit = { task ->
+        taskAdapter.onEdit = { _ ->
             // TODO: 如果需要可呼叫 CreateTaskDialogFragment 編輯
         }
 
-        taskAdapter.onDelete = { taskId ->
+        taskAdapter.onDelete = { taskWithColor ->
             lifecycleScope.launch {
-                taskDao.deleteTask(taskId)
+                taskDao.deleteTask(taskWithColor.task)
                 refreshTaskList()
             }
         }
 
-        taskAdapter.onToggle = { task ->
+        taskAdapter.onToggle = { taskWithColor ->
             lifecycleScope.launch {
-                taskDao.updateTask(task)
+                taskDao.updateTask(taskWithColor.task)
                 refreshTaskList()
             }
         }
@@ -95,6 +98,7 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
     private fun refreshTaskList() {
         lifecycleScope.launch {
             taskDao.getAllTasks().collectLatest { tasks ->
+                // tasks: List<TaskWithColor>
                 val monthStart = Calendar.getInstance().apply {
                     time = currentDate.time
                     set(Calendar.DAY_OF_MONTH, 1)
@@ -113,14 +117,20 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
                     set(Calendar.MILLISECOND, 999)
                 }
 
-                val filtered = tasks.filter { task ->
-                    task.dueAt in monthStart.timeInMillis..monthEnd.timeInMillis &&
-                            (selectedColorFilter?.let { filter -> task.colorTag == filter } ?: true)
-                }.sortedBy { it.dueAt }
+                val filtered = tasks.filter { taskWithColor ->
+                    val task = taskWithColor.task
+                    val inMonth =
+                        task.dueAt in monthStart.timeInMillis..monthEnd.timeInMillis
+
+                    val colorMatch = selectedColorFilter?.let { filter ->
+                        taskWithColor.color?.colorTag == filter
+                    } ?: true
+
+                    inMonth && colorMatch
+                }.sortedBy { it.task.dueAt }
 
                 taskAdapter.submitList(filtered)
             }
         }
     }
-
 }
