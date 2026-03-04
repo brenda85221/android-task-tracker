@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
+import com.taskflow.taskflow2.data.local.TaskWithColor
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
 import kotlinx.coroutines.flow.collectLatest
@@ -40,21 +41,14 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
         // ---------------- TaskAdapter Callback ----------------
         taskAdapter.onItemClick = { taskWithColor ->
             val task = taskWithColor.task
-            // 只有有圖片才打開 Dialog
             if (!task.imageUri.isNullOrEmpty()) {
-                TaskImageDialog.show(
-                    requireContext(),
-                    task,
-                    viewLifecycleOwner.lifecycleScope
-                ) {
+                TaskImageDialog.show(requireContext(), task, viewLifecycleOwner.lifecycleScope) {
                     refreshTaskList()
                 }
             }
         }
 
-        taskAdapter.onEdit = { _ ->
-            // TODO: 如果需要可呼叫 CreateTaskDialogFragment 編輯
-        }
+        taskAdapter.onEdit = { /* TODO: 可呼叫 CreateTaskDialogFragment 編輯 */ }
 
         taskAdapter.onDelete = { taskWithColor ->
             lifecycleScope.launch {
@@ -63,10 +57,18 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
             }
         }
 
-        taskAdapter.onToggle = { taskWithColor ->
+        // 切換完成 / 未完成
+        taskAdapter.onToggle = { taskId, isCompleted ->
             lifecycleScope.launch {
-                taskDao.updateTask(taskWithColor.task)
-                refreshTaskList()
+                val currentTask = taskDao.getTaskById(taskId)?.task?.copy(isCompleted = isCompleted)
+                currentTask?.let { taskDao.updateTask(it) }
+                // ✅ 滾動到最後一個項目（已完成任務移到底）
+                rvTasks.post {
+                    val lastIndex = taskAdapter.itemCount - 1
+                    if (lastIndex >= 0) {
+                        (rvTasks.layoutManager as? LinearLayoutManager)?.scrollToPosition(lastIndex)
+                    }
+                }
             }
         }
 
@@ -92,13 +94,9 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
         tv.text = sdf.format(currentDate.time)
     }
 
-    /**
-     * 刷新當前月份任務列表
-     */
     private fun refreshTaskList() {
         lifecycleScope.launch {
             taskDao.getAllTasks().collectLatest { tasks ->
-                // tasks: List<TaskWithColor>
                 val monthStart = Calendar.getInstance().apply {
                     time = currentDate.time
                     set(Calendar.DAY_OF_MONTH, 1)
@@ -119,15 +117,12 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
 
                 val filtered = tasks.filter { taskWithColor ->
                     val task = taskWithColor.task
-                    val inMonth =
-                        task.dueAt in monthStart.timeInMillis..monthEnd.timeInMillis
-
-                    val colorMatch = selectedColorFilter?.let { filter ->
-                        taskWithColor.color?.colorTag == filter
-                    } ?: true
-
+                    val inMonth = task.dueAt in monthStart.timeInMillis..monthEnd.timeInMillis
+                    val colorMatch = selectedColorFilter?.let { filter -> taskWithColor.color?.colorTag == filter } ?: true
                     inMonth && colorMatch
-                }.sortedBy { it.task.dueAt }
+                }
+                    // ✅ 未完成任務在前，已完成任務在後，保持 dueAt 排序
+                    .sortedWith(compareBy<TaskWithColor> { it.task.isCompleted }.thenBy { it.task.dueAt })
 
                 taskAdapter.submitList(filtered)
             }

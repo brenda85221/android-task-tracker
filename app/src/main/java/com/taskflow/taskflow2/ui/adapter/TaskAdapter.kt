@@ -19,7 +19,7 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
     var onItemClick: ((TaskWithColor) -> Unit)? = null
     var onEdit: ((TaskWithColor) -> Unit)? = null
     var onDelete: ((TaskWithColor) -> Unit)? = null
-    var onToggle: ((TaskWithColor) -> Unit)? = null
+    var onToggle: ((Long, Boolean) -> Unit)? = null  // ✅ id + 新狀態
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -46,7 +46,15 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
 
             tvTitle.text = task.title
             tvDate.text = task.dueAt.toFormattedDate()
+
+            // ✅ 移除舊 listener，避免亂勾選
+            cbCompleted.setOnCheckedChangeListener(null)
             cbCompleted.isChecked = task.isCompleted
+            cbCompleted.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked != task.isCompleted) {
+                    onToggle?.invoke(task.id, isChecked)
+                }
+            }
 
             // 顯示是否有圖片的提示
             tvImageHint.visibility = if (!task.imageUri.isNullOrEmpty()) View.VISIBLE else View.GONE
@@ -63,11 +71,6 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
             } catch (e: Exception) {
                 tvTitle.setTextColor(Color.BLACK)
                 tvDate.setTextColor(Color.BLACK)
-            }
-
-            // ----------- 事件監聽 -----------
-            cbCompleted.setOnCheckedChangeListener { _, isChecked ->
-                onToggle?.invoke(taskWithColor.copy(task = task.copy(isCompleted = isChecked)))
             }
 
             btnEdit.setOnClickListener { onEdit?.invoke(taskWithColor) }
