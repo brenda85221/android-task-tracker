@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 垃圾桶桶身 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M3,6h18v2H3V6zm2,3h14v12H5V9zm3,2v8h2v-8H8zm4,0v8h2v-8h-2zm4,0v8h2v-8h-2z"/>
+
+    <!-- 垃圾桶蓋子 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M9,4h6v2H9V4z"/>
+</vector>

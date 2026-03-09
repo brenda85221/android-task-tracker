@@ -1,18 +1,22 @@
 package com.taskflow.taskflow2.ui.fragment
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
 import com.taskflow.taskflow2.data.local.TaskWithColor
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
+import com.taskflow.taskflow2.ui.dialog.CreateTaskDialogFragment
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
+import com.taskflow.taskflow2.util.TaskSwipeCallback
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -22,81 +26,107 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
 
     private val db by lazy { TaskDatabase.getInstance(requireContext()) }
     private val taskDao by lazy { db.taskDao() }
+
     private lateinit var taskAdapter: TaskAdapter
     private var currentDate = Calendar.getInstance()
     private var selectedColorFilter: String? = null
 
+    private lateinit var rvTasks: RecyclerView
+    private lateinit var tvMonthYear: TextView
+    private lateinit var btnPrevMonth: Button
+    private lateinit var btnNextMonth: Button
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val tvMonthYear = view.findViewById<TextView>(R.id.tvMonthYear)
-        val btnPrevMonth = view.findViewById<Button>(R.id.btnPrevMonth)
-        val btnNextMonth = view.findViewById<Button>(R.id.btnNextMonth)
-        val rvTasks = view.findViewById<RecyclerView>(R.id.rvTasksInMonth)
+        rvTasks = view.findViewById(R.id.rvTasksInMonth)
+        tvMonthYear = view.findViewById(R.id.tvMonthYear)
+        btnPrevMonth = view.findViewById(R.id.btnPrevMonth)
+        btnNextMonth = view.findViewById(R.id.btnNextMonth)
 
+        setupRecyclerView()
+        setupMonthNavigation()
+        updateMonthView()
+        observeTasks()
+    }
+
+    // ---------------- RecyclerView + Swipe ----------------
+    private fun setupRecyclerView() {
         taskAdapter = TaskAdapter()
         rvTasks.layoutManager = LinearLayoutManager(requireContext())
         rvTasks.adapter = taskAdapter
 
-        // ---------------- TaskAdapter Callback ----------------
         taskAdapter.onItemClick = { taskWithColor ->
             val task = taskWithColor.task
             if (!task.imageUri.isNullOrEmpty()) {
                 TaskImageDialog.show(requireContext(), task, viewLifecycleOwner.lifecycleScope) {
-                    refreshTaskList()
+                    observeTasks()
                 }
             }
         }
 
-        taskAdapter.onEdit = { /* TODO: 可呼叫 CreateTaskDialogFragment 編輯 */ }
-
-        taskAdapter.onDelete = { taskWithColor ->
-            lifecycleScope.launch {
-                taskDao.deleteTask(taskWithColor.task)
-                refreshTaskList()
-            }
+        taskAdapter.onEdit = { taskWithColor ->
+            val dialog = CreateTaskDialogFragment.newInstance(taskWithColor)
+            dialog.onSave = { observeTasks() }
+            dialog.show(parentFragmentManager, "EditTaskDialog")
         }
 
-        // 切換完成 / 未完成
         taskAdapter.onToggle = { taskId, isCompleted ->
             lifecycleScope.launch {
-                val currentTask = taskDao.getTaskById(taskId)?.task?.copy(isCompleted = isCompleted)
-                currentTask?.let { taskDao.updateTask(it) }
-                // ✅ 滾動到最後一個項目（已完成任務移到底）
-                rvTasks.post {
-                    val lastIndex = taskAdapter.itemCount - 1
-                    if (lastIndex >= 0) {
-                        (rvTasks.layoutManager as? LinearLayoutManager)?.scrollToPosition(lastIndex)
-                    }
-                }
+                val current = taskDao.getTaskById(taskId)?.task?.copy(isCompleted = isCompleted)
+                current?.let { taskDao.updateTask(it) }
             }
         }
 
-        // ---------------- 月份切換 ----------------
+        // Swipe to delete
+        val swipeHandler = TaskSwipeCallback { position ->
+            val task = taskAdapter.currentList[position]
+            showDeleteConfirmDialog(task, position)
+        }
+        ItemTouchHelper(swipeHandler).attachToRecyclerView(rvTasks)
+    }
+
+    // ---------------- Delete Confirm ----------------
+    private fun showDeleteConfirmDialog(task: TaskWithColor, position: Int) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("刪除任務")
+            .setMessage("確定刪除「${task.task.title}」嗎？")
+            .setPositiveButton("刪除") { _, _ ->
+                lifecycleScope.launch {
+                    taskDao.deleteTask(task.task)
+                }
+            }
+            .setNegativeButton("取消") { _, _ ->
+                taskAdapter.notifyItemChanged(position)
+            }
+            .show()
+    }
+
+    // ---------------- Month Navigation ----------------
+    private fun setupMonthNavigation() {
         btnPrevMonth.setOnClickListener {
             currentDate.add(Calendar.MONTH, -1)
-            updateMonthView(tvMonthYear)
-            refreshTaskList()
+            updateMonthView()
+            observeTasks()
         }
 
         btnNextMonth.setOnClickListener {
             currentDate.add(Calendar.MONTH, 1)
-            updateMonthView(tvMonthYear)
-            refreshTaskList()
+            updateMonthView()
+            observeTasks()
         }
-
-        updateMonthView(tvMonthYear)
-        refreshTaskList()
     }
 
-    private fun updateMonthView(tv: TextView) {
+    private fun updateMonthView() {
         val sdf = java.text.SimpleDateFormat("yyyy 年 MM 月", Locale.getDefault())
-        tv.text = sdf.format(currentDate.time)
+        tvMonthYear.text = sdf.format(currentDate.time)
     }
 
-    private fun refreshTaskList() {
+    // ---------------- Task Flow ----------------
+    private fun observeTasks() {
         lifecycleScope.launch {
             taskDao.getAllTasks().collectLatest { tasks ->
+
                 val monthStart = Calendar.getInstance().apply {
                     time = currentDate.time
                     set(Calendar.DAY_OF_MONTH, 1)
@@ -120,9 +150,7 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
                     val inMonth = task.dueAt in monthStart.timeInMillis..monthEnd.timeInMillis
                     val colorMatch = selectedColorFilter?.let { filter -> taskWithColor.color?.colorTag == filter } ?: true
                     inMonth && colorMatch
-                }
-                    // ✅ 未完成任務在前，已完成任務在後，保持 dueAt 排序
-                    .sortedWith(compareBy<TaskWithColor> { it.task.isCompleted }.thenBy { it.task.dueAt })
+                }.sortedWith(compareBy<TaskWithColor> { it.task.isCompleted }.thenBy { it.task.dueAt })
 
                 taskAdapter.submitList(filtered)
             }

@@ -20,13 +20,13 @@
 
         <!-- 任務描述 -->
         <EditText
-            android:id="@+id/etDescription"
+            android:id="@+id/etNotes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="描述 (選填)"
+            android:hint="小筆記 (選填)"
             android:inputType="textMultiLine"
-            android:minLines="2" />
+            android:minLines="1" />
 
         <!-- 日期與時間 -->
         <LinearLayout
@@ -39,7 +39,7 @@
                 android:id="@+id/btnDate"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_weight="3"
                 android:text="選擇日期" />
 
             <Space
@@ -50,8 +50,8 @@
                 android:id="@+id/btnTime"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="選擇時間" />
+                android:layout_weight="2"
+                android:text="時間" />
         </LinearLayout>
 
         <!-- 提醒頻率 -->
@@ -60,13 +60,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp" />
-
-        <!-- 顏色選擇 (簡單用 RadioGroup 示意) -->
-<!--        <TextView-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_marginTop="12dp"-->
-<!--            android:text="任務顏色" />-->
 
         <TextView
             android:id="@+id/tvColorTitle"
@@ -81,26 +74,7 @@
             android:id="@+id/rgColors"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <RadioButton
-                android:id="@+id/rbBlue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="藍色" />
-
-            <RadioButton
-                android:id="@+id/rbRed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="紅色" />
-
-            <RadioButton
-                android:id="@+id/rbGreen"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="綠色" />
-        </RadioGroup>
+            android:orientation="horizontal" />
 
         <!-- 圖片選擇按鈕 -->
         <Button
@@ -110,24 +84,50 @@
             android:layout_marginTop="12dp"
             android:text="選擇圖片 📷" />
 
-        <TextView
-            android:id="@+id/tvSelectedImage"
+        <FrameLayout
+            android:id="@+id/layoutImagePreview"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="150dp"
             android:layout_marginTop="8dp"
-            android:text="未選擇圖片"
-            android:textSize="12sp"
-            android:textColor="@android:color/darker_gray" />
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivPreviewImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"/>
+
+            <ImageButton
+                android:id="@+id/btnRemoveImage"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:contentDescription="移除圖片"/>
+        </FrameLayout>
+
+
+
+<!--        <TextView-->
+<!--            android:id="@+id/tvSelectedImage"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginTop="8dp"-->
+<!--            android:text="未選擇圖片"-->
+<!--            android:textSize="12sp"-->
+<!--            android:textColor="@android:color/darker_gray" />-->
 
         <!-- 備註 -->
-        <EditText
-            android:id="@+id/etNotes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="備註 (選填)"
-            android:inputType="textMultiLine"
-            android:minLines="2" />
+<!--        <EditText-->
+<!--            android:id="@+id/etNotes"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginTop="12dp"-->
+<!--            android:hint="備註 (選填)"-->
+<!--            android:inputType="textMultiLine"-->
+<!--            android:minLines="2" />-->
 
         <!-- 底部按鈕 -->
         <LinearLayout

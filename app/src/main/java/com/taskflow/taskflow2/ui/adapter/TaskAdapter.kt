@@ -19,7 +19,7 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
     var onItemClick: ((TaskWithColor) -> Unit)? = null
     var onEdit: ((TaskWithColor) -> Unit)? = null
     var onDelete: ((TaskWithColor) -> Unit)? = null
-    var onToggle: ((Long, Boolean) -> Unit)? = null  // ✅ id + 新狀態
+    var onToggle: ((Long, Boolean) -> Unit)? = null  // id + 新狀態
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -37,8 +37,8 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
         private val tvDate: TextView = itemView.findViewById(R.id.tvDate)
         private val cbCompleted: CheckBox = itemView.findViewById(R.id.cbCompleted)
         private val btnEdit: ImageButton = itemView.findViewById(R.id.btnEdit)
-        private val btnDelete: ImageButton = itemView.findViewById(R.id.btnDelete)
         private val tvImageHint: TextView = itemView.findViewById(R.id.tvImageHint)
+        private val colorIndicator: View = itemView.findViewById(R.id.colorIndicator) // 新增左邊條
 
         fun bind(taskWithColor: TaskWithColor) {
             val task = taskWithColor.task
@@ -47,7 +47,7 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
             tvTitle.text = task.title
             tvDate.text = task.dueAt.toFormattedDate()
 
-            // ✅ 移除舊 listener，避免亂勾選
+            // ✅ 避免 RecyclerView 重用導致亂勾選
             cbCompleted.setOnCheckedChangeListener(null)
             cbCompleted.isChecked = task.isCompleted
             cbCompleted.setOnCheckedChangeListener { _, isChecked ->
@@ -56,25 +56,25 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
                 }
             }
 
-            // 顯示是否有圖片的提示
+            // 顯示是否有圖片提示
             tvImageHint.visibility = if (!task.imageUri.isNullOrEmpty()) View.VISIBLE else View.GONE
 
-            // 背景色 & 文字顏色對比
+            // 只改左邊條顏色，不影響整個 item 背景
             try {
-                val bgColor = Color.parseColor(colorTag)
-                itemView.setBackgroundColor(bgColor)
-                val luminance =
-                    (Color.red(bgColor) * 0.299 + Color.green(bgColor) * 0.587 + Color.blue(bgColor) * 0.114) / 255
-                val textColor = if (luminance > 0.5) Color.BLACK else Color.WHITE
-                tvTitle.setTextColor(textColor)
-                tvDate.setTextColor(textColor)
-            } catch (e: Exception) {
+                val indicatorColor = Color.parseColor(colorTag)
+                colorIndicator.setBackgroundColor(indicatorColor)
+
+                // 文字顏色保持黑色，背景透明
                 tvTitle.setTextColor(Color.BLACK)
-                tvDate.setTextColor(Color.BLACK)
+                tvDate.setTextColor(Color.DKGRAY)
+            } catch (e: Exception) {
+                colorIndicator.setBackgroundColor(Color.GRAY)
+                tvTitle.setTextColor(Color.BLACK)
+                tvDate.setTextColor(Color.DKGRAY)
             }
 
+            // 編輯按鈕
             btnEdit.setOnClickListener { onEdit?.invoke(taskWithColor) }
-            btnDelete.setOnClickListener { onDelete?.invoke(taskWithColor) }
 
             // item click → 只有有圖片才觸發
             itemView.setOnClickListener {
