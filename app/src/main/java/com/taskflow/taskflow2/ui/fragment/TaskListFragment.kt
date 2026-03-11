@@ -8,31 +8,43 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
-import com.taskflow.taskflow2.data.local.TaskDatabase
 import com.taskflow.taskflow2.data.local.TaskWithColor
+import com.taskflow.taskflow2.data.repository.TaskRepository
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.dialog.CreateTaskDialogFragment
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
 import com.taskflow.taskflow2.util.TaskSwipeCallback
+import com.taskflow.taskflow2.viewmodel.TaskViewModel
+import com.taskflow.taskflow2.viewmodel.TaskViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class TaskListFragment : Fragment(R.layout.fragment_task_list) {
 
-    private val db by lazy { TaskDatabase.getInstance(requireContext()) }
-    private val taskDao by lazy { db.taskDao() }
+    // ---------------- ViewModel ----------------
+    private val viewModel: TaskViewModel by viewModels {
+        TaskViewModelFactory(
+            TaskRepository(
+                com.taskflow.taskflow2.data.local.TaskDatabase
+                    .getInstance(requireContext())
+                    .taskDao()
+            )
+        )
+    }
 
+    // ---------------- UI ----------------
+    private lateinit var rvTasks: RecyclerView
+    private lateinit var colorFilterContainer: LinearLayout
     private lateinit var taskAdapter: TaskAdapter
     private var selectedColorFilter: String? = null
 
-    private lateinit var rvTasks: RecyclerView
-    private lateinit var colorFilterContainer: LinearLayout
-
+    // ---------------- Lifecycle ----------------
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -45,11 +57,8 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
     }
 
     // ---------------- RecyclerView ----------------
-
     private fun setupRecyclerView() {
-
         taskAdapter = TaskAdapter()
-
         rvTasks.layoutManager = LinearLayoutManager(requireContext())
         rvTasks.adapter = taskAdapter
 
@@ -71,76 +80,52 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
             dialog.show(parentFragmentManager, "EditTaskDialog")
         }
 
-        // 切換完成
+        // 切換完成 → 搬到 ViewModel
         taskAdapter.onToggle = { taskId, isCompleted ->
-            lifecycleScope.launch {
-                val current = taskDao.getTaskById(taskId)?.task?.copy(isCompleted = isCompleted)
-                current?.let { taskDao.updateTask(it) }
-            }
+            val task = taskAdapter.currentList.find { it.task.id == taskId }
+            task?.let { viewModel.toggleTaskCompleted(it, isCompleted) }
         }
 
-        // -------- Swipe Delete --------
+        // Swipe Delete → 搬到 ViewModel
         val swipeHandler = TaskSwipeCallback { position ->
-
             val task = taskAdapter.currentList[position]
-
             showDeleteConfirmDialog(task, position)
         }
-
         ItemTouchHelper(swipeHandler).attachToRecyclerView(rvTasks)
     }
 
     // ---------------- Delete Confirm ----------------
-
     private fun showDeleteConfirmDialog(task: TaskWithColor, position: Int) {
-
         AlertDialog.Builder(requireContext())
             .setTitle("刪除任務")
             .setMessage("確定刪除「${task.task.title}」嗎？")
             .setPositiveButton("刪除") { _, _ ->
-
-                lifecycleScope.launch {
-                    taskDao.deleteTask(task.task)
-                }
+                viewModel.deleteTask(task.task)
             }
             .setNegativeButton("取消") { _, _ ->
-
                 taskAdapter.notifyItemChanged(position)
             }
             .show()
     }
 
-    // ---------------- Task Flow ----------------
-
+    // ---------------- Observe Tasks ----------------
     private fun observeTasks() {
-
-        lifecycleScope.launch {
-
-            taskDao.getAllTasks().collectLatest { tasks ->
-
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.tasks.collectLatest { tasks ->
                 val filtered = selectedColorFilter?.let { filter ->
                     tasks.filter { it.color?.colorTag == filter }
                 } ?: tasks
-
                 taskAdapter.submitList(filtered)
             }
         }
     }
 
     // ---------------- Color Filter ----------------
-
     private fun setupColorFilter() {
-
-        lifecycleScope.launch {
-
-            taskDao.getAllColors().collectLatest { colors ->
-
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.allColors.collectLatest { colors ->
                 colorFilterContainer.removeAllViews()
-
-                addFilterButton("全部", "#F5F5F5", true) {
-                    selectedColorFilter = null
-                }
-
+                addFilterButton("全部", "#F5F5F5", true) { selectedColorFilter = null }
                 colors.forEach { color ->
                     addFilterButton(color.colorName, color.colorTag, false) {
                         selectedColorFilter = color.colorTag
@@ -150,48 +135,30 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
         }
     }
 
-    private fun addFilterButton(
-        text: String,
-        colorTag: String,
-        isAll: Boolean,
-        onClick: () -> Unit
-    ) {
-
+    private fun addFilterButton(text: String, colorTag: String, isAll: Boolean, onClick: () -> Unit) {
         val button = Button(requireContext())
-
         val buttonWidth = (resources.displayMetrics.density * 100).toInt()
         val buttonHeight = (resources.displayMetrics.density * 48).toInt()
-
         button.layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
-            setMargins((resources.displayMetrics.density * 8).toInt(), 0, (resources.displayMetrics.density * 8).toInt(), 0)
+            setMargins(
+                (resources.displayMetrics.density * 8).toInt(),
+                0,
+                (resources.displayMetrics.density * 8).toInt(),
+                0
+            )
         }
-
         button.text = text
 
-        val bgColor = try {
-            Color.parseColor(colorTag)
-        } catch (e: Exception) {
-            Color.GRAY
-        }
-
+        val bgColor = try { Color.parseColor(colorTag) } catch (e: Exception) { Color.GRAY }
         val luminance =
-            (Color.red(bgColor) * 0.299 +
-                    Color.green(bgColor) * 0.587 +
-                    Color.blue(bgColor) * 0.114) / 255
-
-        button.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = 24f
-            setColor(bgColor)
-        }
-
+            (Color.red(bgColor) * 0.299 + Color.green(bgColor) * 0.587 + Color.blue(bgColor) * 0.114) / 255
+        button.background = GradientDrawable().apply { shape = GradientDrawable.RECTANGLE; cornerRadius = 24f; setColor(bgColor) }
         button.setTextColor(if (luminance > 0.5) Color.BLACK else Color.WHITE)
 
         button.setOnClickListener {
             onClick()
             observeTasks()
         }
-
         colorFilterContainer.addView(button)
     }
 }

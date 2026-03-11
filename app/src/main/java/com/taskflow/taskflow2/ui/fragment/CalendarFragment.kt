@@ -1,11 +1,13 @@
 package com.taskflow.taskflow2.ui.fragment
 
-import android.app.AlertDialog
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -13,29 +15,43 @@ import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskDatabase
 import com.taskflow.taskflow2.data.local.TaskWithColor
+import com.taskflow.taskflow2.data.repository.TaskRepository
 import com.taskflow.taskflow2.ui.adapter.TaskAdapter
 import com.taskflow.taskflow2.ui.dialog.CreateTaskDialogFragment
 import com.taskflow.taskflow2.ui.dialog.TaskImageDialog
 import com.taskflow.taskflow2.util.TaskSwipeCallback
+import com.taskflow.taskflow2.viewmodel.TaskViewModel
+import com.taskflow.taskflow2.viewmodel.TaskViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
+import android.graphics.drawable.GradientDrawable
+import android.app.AlertDialog
 
 class CalendarFragment : Fragment(R.layout.fragment_calendar) {
 
-    private val db by lazy { TaskDatabase.getInstance(requireContext()) }
-    private val taskDao by lazy { db.taskDao() }
+    // ---------------- ViewModel ----------------
+    private val viewModel: TaskViewModel by viewModels {
+        TaskViewModelFactory(
+            TaskRepository(
+                TaskDatabase.getInstance(requireContext()).taskDao()
+            )
+        )
+    }
+
+    // ---------------- UI ----------------
+    private lateinit var rvTasks: RecyclerView
+    private lateinit var tvMonthYear: TextView
+    private lateinit var btnPrevMonth: Button
+    private lateinit var btnNextMonth: Button
+    private lateinit var colorFilterContainer: LinearLayout
 
     private lateinit var taskAdapter: TaskAdapter
     private var currentDate = Calendar.getInstance()
     private var selectedColorFilter: String? = null
 
-    private lateinit var rvTasks: RecyclerView
-    private lateinit var tvMonthYear: TextView
-    private lateinit var btnPrevMonth: Button
-    private lateinit var btnNextMonth: Button
-
+    // ---------------- Lifecycle ----------------
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -43,14 +59,16 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
         tvMonthYear = view.findViewById(R.id.tvMonthYear)
         btnPrevMonth = view.findViewById(R.id.btnPrevMonth)
         btnNextMonth = view.findViewById(R.id.btnNextMonth)
+        colorFilterContainer = view.findViewById(R.id.colorFilterContainer)
 
         setupRecyclerView()
         setupMonthNavigation()
+        setupColorFilter()
         updateMonthView()
         observeTasks()
     }
 
-    // ---------------- RecyclerView + Swipe ----------------
+    // ---------------- RecyclerView ----------------
     private fun setupRecyclerView() {
         taskAdapter = TaskAdapter()
         rvTasks.layoutManager = LinearLayoutManager(requireContext())
@@ -72,13 +90,10 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
         }
 
         taskAdapter.onToggle = { taskId, isCompleted ->
-            lifecycleScope.launch {
-                val current = taskDao.getTaskById(taskId)?.task?.copy(isCompleted = isCompleted)
-                current?.let { taskDao.updateTask(it) }
-            }
+            val taskWithColor = taskAdapter.currentList.find { it.task.id == taskId }
+            taskWithColor?.let { viewModel.toggleTaskCompleted(it, isCompleted) }
         }
 
-        // Swipe to delete
         val swipeHandler = TaskSwipeCallback { position ->
             val task = taskAdapter.currentList[position]
             showDeleteConfirmDialog(task, position)
@@ -92,9 +107,7 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
             .setTitle("刪除任務")
             .setMessage("確定刪除「${task.task.title}」嗎？")
             .setPositiveButton("刪除") { _, _ ->
-                lifecycleScope.launch {
-                    taskDao.deleteTask(task.task)
-                }
+                viewLifecycleOwner.lifecycleScope.launch { viewModel.deleteTask(task.task) }
             }
             .setNegativeButton("取消") { _, _ ->
                 taskAdapter.notifyItemChanged(position)
@@ -122,11 +135,10 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
         tvMonthYear.text = sdf.format(currentDate.time)
     }
 
-    // ---------------- Task Flow ----------------
+    // ---------------- Observe Tasks ----------------
     private fun observeTasks() {
-        lifecycleScope.launch {
-            taskDao.getAllTasks().collectLatest { tasks ->
-
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.tasks.collectLatest { tasks ->
                 val monthStart = Calendar.getInstance().apply {
                     time = currentDate.time
                     set(Calendar.DAY_OF_MONTH, 1)
@@ -148,12 +160,65 @@ class CalendarFragment : Fragment(R.layout.fragment_calendar) {
                 val filtered = tasks.filter { taskWithColor ->
                     val task = taskWithColor.task
                     val inMonth = task.dueAt in monthStart.timeInMillis..monthEnd.timeInMillis
-                    val colorMatch = selectedColorFilter?.let { filter -> taskWithColor.color?.colorTag == filter } ?: true
+                    val colorMatch =
+                        selectedColorFilter?.let { filter -> taskWithColor.color?.colorTag == filter } ?: true
                     inMonth && colorMatch
                 }.sortedWith(compareBy<TaskWithColor> { it.task.isCompleted }.thenBy { it.task.dueAt })
 
                 taskAdapter.submitList(filtered)
             }
         }
+    }
+
+    // ---------------- Color Filter ----------------
+    private fun setupColorFilter() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.allColors.collectLatest { colors ->
+                colorFilterContainer.removeAllViews()
+                addFilterButton("全部", "#F5F5F5", true) { selectedColorFilter = null }
+                colors.forEach { color ->
+                    addFilterButton(color.colorName, color.colorTag, false) { selectedColorFilter = color.colorTag }
+                }
+            }
+        }
+    }
+
+    private fun addFilterButton(text: String, colorTag: String, isAll: Boolean, onClick: () -> Unit) {
+        val button = Button(requireContext())
+        val buttonWidth = (resources.displayMetrics.density * 100).toInt()
+        val buttonHeight = (resources.displayMetrics.density * 48).toInt()
+        button.layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
+            setMargins(
+                (resources.displayMetrics.density * 8).toInt(),
+                0,
+                (resources.displayMetrics.density * 8).toInt(),
+                0
+            )
+        }
+        button.text = text
+
+        val bgColor = try {
+            Color.parseColor(colorTag)
+        } catch (e: Exception) {
+            Color.GRAY
+        }
+
+        val luminance =
+            (Color.red(bgColor) * 0.299 + Color.green(bgColor) * 0.587 + Color.blue(bgColor) * 0.114) / 255
+
+        button.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 24f
+            setColor(bgColor)
+        }
+
+        button.setTextColor(if (luminance > 0.5) Color.BLACK else Color.WHITE)
+
+        button.setOnClickListener {
+            onClick()
+            observeTasks()
+        }
+
+        colorFilterContainer.addView(button)
     }
 }

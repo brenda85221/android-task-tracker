@@ -5,6 +5,28 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- 顏色篩選按鈕區 (水平滾動) -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:id="@+id/colorFilterContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp" />
+
+    </HorizontalScrollView>
+
+    <!-- 淺灰色實線 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#DDDDDD"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"/>
+
     <!-- 月份控制 -->
     <LinearLayout
         android:layout_width="match_parent"

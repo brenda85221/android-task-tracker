@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="16dp">
 
     <!-- 顏色篩選按鈕區 (水平滾動) -->
     <HorizontalScrollView
