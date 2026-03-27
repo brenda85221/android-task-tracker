@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.RadioButton
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +24,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Calendar
+import com.google.android.material.chip.Chip
+import android.content.res.ColorStateList
 
 class CreateTaskDialogFragment : DialogFragment() {
 
@@ -84,6 +85,8 @@ class CreateTaskDialogFragment : DialogFragment() {
         setupColorOptions()
         setupImagePicker()
         setupButtons()
+        updateDateButton()
+        dateSelected = true
 
         return binding.root
     }
@@ -169,32 +172,49 @@ class CreateTaskDialogFragment : DialogFragment() {
         )
     }
 
-    // ---------- Color Options ----------
+    // ---------- Color Options 任務種類選項----------
     private fun setupColorOptions() {
-
         lifecycleScope.launch {
             taskDao.getAllColors().collectLatest { colors ->
 
-                binding.rgColors.removeAllViews()
+                binding.chipGroupColors.removeAllViews()
 
                 colors.forEach { color ->
+                    val parsedColor = android.graphics.Color.parseColor(color.colorTag)
 
-                    val radio = RadioButton(requireContext()).apply {
-
+                    val chip = Chip(requireContext()).apply {
+                        setChipBackgroundColorResource(com.google.android.material.R.color.material_dynamic_neutral90)
                         text = color.colorName
                         tag = color
                         id = View.generateViewId()
+                        isCheckable = true
+
+                        // 背景色固定用任務顏色
+                        chipBackgroundColor = ColorStateList.valueOf(parsedColor)
+
+                        // ✅ 選中時加黑外框，未選中無外框
+                        chipStrokeColor = ColorStateList(
+                            arrayOf(
+                                intArrayOf(android.R.attr.state_checked),  // 選中
+                                intArrayOf()                                // 未選中
+                            ),
+                            intArrayOf(
+                                android.graphics.Color.BLACK,              // 選中：黑框
+                                android.graphics.Color.TRANSPARENT         // 未選中：無框
+                            )
+                        )
+                        chipStrokeWidth = 3f  // 框的粗細（px）
 
                         if (editTask?.task?.colorId == color.id) {
                             isChecked = true
                         }
                     }
-
-                    binding.rgColors.addView(radio)
+                    binding.chipGroupColors.addView(chip)
                 }
             }
         }
     }
+
 
     // ---------- Image Picker ----------
     private fun setupImagePicker() {
@@ -234,14 +254,17 @@ class CreateTaskDialogFragment : DialogFragment() {
             return
         }
 
-        val selectedColor =
-            binding.rgColors.findViewById<RadioButton>(
-                binding.rgColors.checkedRadioButtonId
-            )?.tag as? TaskColor
-                ?: run {
-                    Toast.makeText(requireContext(), "請選擇任務種類", Toast.LENGTH_SHORT).show()
-                    return
-                }
+        val checkedId = binding.chipGroupColors.checkedChipId
+        if (checkedId == View.NO_ID) {
+            Toast.makeText(requireContext(), "請選擇任務種類", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val selectedColor = binding.chipGroupColors
+            .findViewById<Chip>(checkedId)?.tag as? TaskColor
+            ?: run {
+                Toast.makeText(requireContext(), "請選擇任務種類", Toast.LENGTH_SHORT).show()
+                return
+            }
 
         if (!timeSelected) {
             selectedCalendar.set(Calendar.HOUR_OF_DAY, 23)

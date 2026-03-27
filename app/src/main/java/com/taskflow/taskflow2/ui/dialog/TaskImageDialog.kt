@@ -26,16 +26,11 @@ object TaskImageDialog {
         lifecycleScope: LifecycleCoroutineScope,
         onDismiss: (() -> Unit)? = null
     ) {
-        if (task.imageUri.isNullOrEmpty()) return  // 無圖片就不顯示
+        if (task.imageUri.isNullOrEmpty()) return
 
         val binding = DialogTaskImageBinding.inflate(android.view.LayoutInflater.from(context))
         val dialog = Dialog(context)
         dialog.setContentView(binding.root)
-
-        // 調整 Dialog 大小，寬 95%，高 70% 螢幕
-        val width = (context.resources.displayMetrics.widthPixels * 0.95).toInt()
-        val height = (context.resources.displayMetrics.heightPixels * 0.7).toInt()
-        dialog.window?.setLayout(width, height)
 
         // 顯示圖片
         Glide.with(context)
@@ -55,14 +50,14 @@ object TaskImageDialog {
             }
         }
 
-        binding.btnCancel.setOnClickListener {
-            dialog.dismiss()
-        }
+        binding.btnCancel.setOnClickListener { dialog.dismiss() }
 
-        dialog.setOnDismissListener {
-            onDismiss?.invoke()
-        }
+        dialog.setOnDismissListener { onDismiss?.invoke() }
 
+        // 先 show()，再設定大小
         dialog.show()
+        val width = (context.resources.displayMetrics.widthPixels * 0.95).toInt()
+        val height = (context.resources.displayMetrics.heightPixels * 0.75).toInt()
+        dialog.window?.setLayout(width, height)
     }
 }
