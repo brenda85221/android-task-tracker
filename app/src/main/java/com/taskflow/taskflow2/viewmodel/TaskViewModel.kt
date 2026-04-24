@@ -2,6 +2,7 @@ package com.taskflow.taskflow2.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.taskflow.taskflow2.data.local.TaskColor
 import com.taskflow.taskflow2.data.local.TaskEntity
 import com.taskflow.taskflow2.data.local.TaskWithColor
 import com.taskflow.taskflow2.data.repository.TaskRepository
@@ -22,16 +23,21 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
 
     // ---------------- Task 操作 ----------------
 
-    fun insertTask(task: TaskEntity) = viewModelScope.launch {
-        repository.insertTask(task)
-    }
+//    fun insertTask(task: TaskEntity) = viewModelScope.launch {
+//        repository.insertTask(task)
+//    }
+//
+//    fun updateTask(task: TaskEntity) = viewModelScope.launch {
+//        repository.updateTask(task)
+//    }
 
-    fun updateTask(task: TaskEntity) = viewModelScope.launch {
-        repository.updateTask(task)
-    }
-
-    fun deleteTask(task: TaskEntity) = viewModelScope.launch {
-        repository.deleteTask(task)
+//    fun deleteTask(task: TaskEntity) = viewModelScope.launch {
+//        repository.deleteTask(task)
+//    }
+    fun deleteTask(task: TaskEntity) {
+        viewModelScope.launch {
+            repository.deleteTask(task)
+        }
     }
 
     fun toggleTaskCompleted(taskWithColor: TaskWithColor, isCompleted: Boolean) {

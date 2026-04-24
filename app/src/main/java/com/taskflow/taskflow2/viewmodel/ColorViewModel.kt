@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.taskflow.taskflow2.data.local.TaskColor
+import com.taskflow.taskflow2.data.local.TaskEntity
 import com.taskflow.taskflow2.data.repository.TaskRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,12 @@ class ColorViewModel(private val repository: TaskRepository) : ViewModel() {
     fun updateColor(color: TaskColor) {
         viewModelScope.launch {
             repository.updateColor(color)
+        }
+    }
+
+    fun deleteColor(color: TaskColor) {
+        viewModelScope.launch {
+            repository.deleteColor(color)
         }
     }
 }

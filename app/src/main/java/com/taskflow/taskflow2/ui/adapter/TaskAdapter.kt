@@ -42,7 +42,7 @@ class TaskAdapter : ListAdapter<TaskWithColor, TaskAdapter.TaskViewHolder>(TaskD
 
         fun bind(taskWithColor: TaskWithColor) {
             val task = taskWithColor.task
-            val colorTag = taskWithColor.color?.colorTag ?: "#2196F3"
+            val colorTag = taskWithColor.color?.colorTag ?: "#D3D3D3" //任務種類為null時，為灰色
 
             tvTitle.text = task.title
             tvDate.text = task.dueAt.toFormattedDate()

@@ -12,13 +12,16 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.taskflow.taskflow2.R
 import com.taskflow.taskflow2.data.local.TaskColor
 import com.taskflow.taskflow2.data.local.TaskDatabase
+import com.taskflow.taskflow2.data.local.TaskWithColor
 import com.taskflow.taskflow2.data.repository.TaskRepository
 import com.taskflow.taskflow2.ui.adapter.ColorGridAdapter
+import com.taskflow.taskflow2.util.TaskSwipeCallback
 import com.taskflow.taskflow2.viewmodel.ColorViewModel
 import com.taskflow.taskflow2.viewmodel.ColorViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
@@ -34,11 +37,11 @@ class ColorSettingFragment : Fragment() {
     private lateinit var colorAdapter: ColorGridAdapter
 
     private val predefinedColors = listOf(
-        "#F8BBD0", "#F48FB1", "#CE93D8", "#B39DDB", "#9FA8DA",
-        "#90CAF9", "#81D4FA", "#80DEEA", "#A5D6A7", "#C5E1A5",
-        "#E6EE9C", "#FFF59D", "#FFE082", "#FFCC80", "#FFAB91", "#B0BEC5"
+        "#F8BBD0", "#F48FB1", "#CE93D8", "#B39DDB",
+        "#9FA8DA", "#90CAF9", "#81D4FA", "#80DEEA",
+        "#A5D6A7", "#C5E1A5", "#E6EE9C", "#FFEE99",
+        "#FFE082", "#FFCC80", "#FFAB91", "#CD853F"
     )
-
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_color_setting, container, false)
     }
@@ -63,6 +66,14 @@ class ColorSettingFragment : Fragment() {
         view.findViewById<View>(R.id.btnAddColor)?.setOnClickListener {
             showColorDialog()
         }
+        //Swipe Delete
+        val swipeHandler = TaskSwipeCallback { position ->
+            val color = colorAdapter.currentList[position]
+
+            showDeleteColorConfirmDialog(color, position)
+        }
+
+        ItemTouchHelper(swipeHandler).attachToRecyclerView(rvColors)
     }
 
     // ---------------- Color Dialog ----------------
@@ -107,7 +118,7 @@ class ColorSettingFragment : Fragment() {
         }
 
         AlertDialog.Builder(requireContext())
-            .setTitle(if (isEditMode) "編輯任務種類" else "新增任務種類")
+            .setTitle(if (isEditMode) "編輯類別" else "新增類別")
             .setView(dialogView)
             .setPositiveButton(if (isEditMode) "保存" else "新增") { _, _ ->
                 val name = etColorName.text.toString().trim()
@@ -126,5 +137,25 @@ class ColorSettingFragment : Fragment() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    // ---------------- Delete Confirm ----------------
+    private fun showDeleteColorConfirmDialog(color: TaskColor, position: Int) {
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("刪除種類")
+            .setMessage("確定刪除「${color.colorName}」嗎？刪除後任務將歸為「無分類」，可重新設定分類")
+            .setPositiveButton("刪除") { _, _ ->
+                viewModel.deleteColor(color)
+            }
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.setOnDismissListener {
+            // 👉 不管怎麼關閉，都恢復 UI
+            colorAdapter.notifyItemChanged(position)
+        }
+
+        dialog.show()
     }
 }
